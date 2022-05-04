@@ -1,0 +1,4 @@
+replay_buffer:
+  size: 4096
+  batch_size: 32
+  shuffle: true

@@ -1,9 +1,14 @@
 import gym
+import hydra
+from omegaconf import DictConfig
 
 from agent import DDPGAgent
+from replay_buffer import ReplayBuffer, ReplayBufferConfig
 
 
-def main():
+@hydra.main(config_path="../conf", config_name="config")
+def main(cfg: DictConfig):
+    _ = ReplayBuffer(ReplayBufferConfig.fromDictConfig(cfg.replay_buffer))
     env = gym.make("BipedalWalker-v3")
     agent = DDPGAgent(env.action_space)
     _ = env.reset()
