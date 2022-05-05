@@ -8,17 +8,25 @@ from replay_buffer import ReplayBuffer, ReplayBufferConfig
 
 @hydra.main(config_path="../conf", config_name="config")
 def main(cfg: DictConfig):
-    _ = ReplayBuffer(ReplayBufferConfig.fromDictConfig(cfg.replay_buffer))
     env = gym.make("BipedalWalker-v3")
-    agent = DDPGAgent(env.action_space)
-    _ = env.reset()
+    buffer_config = ReplayBufferConfig.fromDictConfig(cfg.replay_buffer)
+    buffer_state_action = ReplayBuffer(
+        buffer_config, env.observation_space.shape, env.action_space.shape
+    )
+    agent = DDPGAgent(env.action_space, buffer_state_action)
+
+    state = env.reset()
     done = False
     sum_reward = 0
     while not done:
         env.render()
-        new_state, reward, done, _ = env.step(agent.action())
+        new_state, reward, done, _ = env.step(agent.action(state))
+        agent.update(new_state, reward, done)
         sum_reward += reward
+        state = new_state
 
+    print(agent._replay_buffer._replay_buffer_input)
+    print(agent._replay_buffer._replay_buffer_target)
     print(sum_reward)
 
 
