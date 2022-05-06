@@ -4,7 +4,8 @@ import numpy as np
 import torch
 from gym import Space
 from omegaconf import DictConfig
-from torch.nn import Sequential, Linear, ReLU, Tanh
+from torch.nn import Sequential, Linear, ReLU, Tanh, MSELoss
+from torch.optim import Adam
 
 from replay_buffer import ReplayBuffer
 
@@ -53,7 +54,14 @@ class DDPGAgent:
 
     def update(self, new_state: np.ndarray, reward: float, done: bool) -> None:
         self._replay_buffer.add(self._state, self._action, reward, done, new_state)
+
+        if not self._replay_buffer.is_full():
+            return
         # TODO Learning
+
+    def _train(self) -> None:
+        _ = MSELoss()
+        _ = Adam(params=self._q_model.parameters())
 
     @torch.no_grad()
     def _update_target_models(self) -> None:
