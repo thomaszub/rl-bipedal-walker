@@ -1,6 +1,7 @@
 from copy import deepcopy
 from dataclasses import dataclass
 import numpy as np
+import torch
 from gym import Space
 from omegaconf import DictConfig
 from torch.nn import Sequential, Linear, ReLU, Tanh
@@ -40,14 +41,30 @@ class DDPGAgent:
         self._target_q_model = deepcopy(self._q_model)
         self._train_mode = True
 
-    def train_mode(self, turn_on: bool) -> None:
-        self._train_mode = turn_on
+    def train_mode(self, on: bool) -> None:
+        self._train_mode = on
 
     def action(self, state: np.ndarray) -> np.ndarray:
-        action = self._action_space.sample()
-        state_copy = np.copy(state)
-        self._replay_buffer.add(state_copy, action)
+        input = torch.tensor(state).float().view(1, -1)
+        action = self._policy_model(input).detach().numpy().reshape(-1)
+        self._state = deepcopy(state)
+        self._action = deepcopy(action)
         return action
 
     def update(self, new_state: np.ndarray, reward: float, done: bool) -> None:
-        pass
+        self._replay_buffer.add(self._state, self._action, reward, done, new_state)
+        # TODO Learning
+
+    @torch.no_grad()
+    def _update_target_models(self) -> None:
+        polyak = self.config.polyak
+
+        for name, p in self._target_policy_model.named_parameters():
+            p_update = polyak * p + (1.0 - polyak) * self._policy_model.get_parameter(
+                name
+            )
+            p.copy_(p_update)
+
+        for name, p in self._target_q_model.named_parameters():
+            p_update = polyak * p + (1.0 - polyak) * self._q_model.get_parameter(name)
+            p.copy_(p_update)

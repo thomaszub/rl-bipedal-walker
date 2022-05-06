@@ -28,8 +28,6 @@ def main(cfg: DictConfig):
         sum_reward += reward
         state = new_state
 
-    print(agent._replay_buffer._replay_buffer_input)
-    print(agent._replay_buffer._replay_buffer_target)
     print(sum_reward)
 
 
