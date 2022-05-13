@@ -7,7 +7,12 @@ from omegaconf import DictConfig
 from torch.nn import Sequential, Linear, ReLU, Tanh, MSELoss
 from torch.optim import Adam
 
+from model import PolicyBasedQModel
 from replay_buffer import ReplayBuffer
+
+
+def q_loss(pred: torch.Tensor) -> torch.Tensor:
+    return -torch.mean(pred)
 
 
 @dataclass()
@@ -40,14 +45,23 @@ class DDPGAgent:
         )
         self._target_policy_model = deepcopy(self._policy_model)
         self._target_q_model = deepcopy(self._q_model)
+        self._target_pq_model = PolicyBasedQModel(
+            self._target_q_model, self._target_policy_model
+        )
         self._train_mode = True
+        self._q_loss = MSELoss()
+        self._q_optim = Adam(params=self._q_model.parameters())
+        self._policy_loss = q_loss
+        self._policy_optim = Adam(params=self._policy_model.parameters())
 
     def train_mode(self, on: bool) -> None:
         self._train_mode = on
 
     def action(self, state: np.ndarray) -> np.ndarray:
         input = torch.tensor(state).float().view(1, -1)
-        action = self._policy_model(input).detach().numpy().reshape(-1)
+        action = (
+            self._policy_model(input).detach().numpy().reshape(-1)
+        )  # TODO Add random noice
         self._state = deepcopy(state)
         self._action = deepcopy(action)
         return action
@@ -55,13 +69,37 @@ class DDPGAgent:
     def update(self, new_state: np.ndarray, reward: float, done: bool) -> None:
         self._replay_buffer.add(self._state, self._action, reward, done, new_state)
 
-        if not self._replay_buffer.is_full():
-            return
-        # TODO Learning
+        # if not self._replay_buffer.is_full():
+        #    return
+        # TODO When to start learning
+        self._train()
 
     def _train(self) -> None:
-        _ = MSELoss()
-        _ = Adam(params=self._q_model.parameters())
+        state, action, reward, done, next_state = self._replay_buffer.sample(
+            self.config.batch_size
+        )
+
+        input = torch.tensor(next_state).float().view(1, -1)
+        target = (
+            reward
+            + self.config.discount
+            * (1.0 - done)
+            * self._target_pq_model(input).detach().numpy()
+        )
+        state_action = torch.cat((state, action), 1)
+
+        loss = self._q_loss(self._q_model(state_action), target)
+        self._q_optim.zero_grad()
+        loss.backward()
+        self._q_optim.step()
+
+        state_action = torch.cat((state, self._policy_model(state)), 1)
+        loss = self._policy_loss(self._q_model(state_action))
+        self._policy_optim.zero_grad()
+        loss.backward()
+        self._policy_optim.step()
+
+        self._update_target_models()
 
     @torch.no_grad()
     def _update_target_models(self) -> None:
