@@ -1,10 +1,11 @@
 from copy import deepcopy
 from dataclasses import dataclass
+
 import numpy as np
 import torch
 from gym import Space
 from omegaconf import DictConfig
-from torch.nn import Sequential, Linear, ReLU, Tanh, MSELoss
+from torch.nn import Linear, MSELoss, ReLU, Sequential, Tanh
 from torch.optim import Adam
 
 from model import PolicyBasedQModel
@@ -79,21 +80,22 @@ class DDPGAgent:
             self.config.batch_size
         )
 
-        input = torch.tensor(next_state).float().view(1, -1)
+        input = torch.tensor(next_state).float()
         target = (
             reward
             + self.config.discount
             * (1.0 - done)
             * self._target_pq_model(input).detach().numpy()
         )
-        state_action = torch.cat((state, action), 1)
+        state_action = torch.tensor(np.concatenate((state, action), 1)).float()
 
-        loss = self._q_loss(self._q_model(state_action), target)
+        loss = self._q_loss(self._q_model(state_action), torch.tensor(target).float())
         self._q_optim.zero_grad()
         loss.backward()
         self._q_optim.step()
 
-        state_action = torch.cat((state, self._policy_model(state)), 1)
+        state_t = torch.tensor(state).float()
+        state_action = torch.cat((state_t, self._policy_model(state_t)), 1)
         loss = self._policy_loss(self._q_model(state_action))
         self._policy_optim.zero_grad()
         loss.backward()

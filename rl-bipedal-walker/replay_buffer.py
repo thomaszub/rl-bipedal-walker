@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np
-
 from omegaconf import DictConfig
 
 
@@ -53,9 +52,13 @@ class ReplayBuffer:
         self, batch_size: int
     ) -> Tuple[np.ndarray, np.ndarray, float, bool, np.ndarray]:
         def choice(buffer: np.ndarray) -> np.ndarray:
-            idx = np.random.choice(self.config.size, (batch_size))
-            return np.take(buffer, idx)
 
+            # idx = np.random.choice(self.config.size, (batch_size))
+            # return np.take(buffer, idx)
+            rng = np.random.default_rng()
+            return rng.choice(buffer, batch_size, replace=False)
+
+        # TODO Fehler
         return (
             choice(self._replay_buffer_state),
             choice(self._replay_buffer_action),
