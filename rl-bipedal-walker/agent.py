@@ -81,11 +81,9 @@ class DDPGAgent:
         )
 
         input = torch.tensor(next_state).float()
-        target = (
-            reward
-            + self.config.discount
-            * (1.0 - done)
-            * self._target_pq_model(input).detach().numpy()
+        target_q = self._target_pq_model(input).detach().numpy().reshape(-1)
+        target = (reward + self.config.discount * (1.0 - done) * target_q).reshape(
+            -1, 1
         )
         state_action = torch.tensor(np.concatenate((state, action), 1)).float()
 
