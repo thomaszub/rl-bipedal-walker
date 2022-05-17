@@ -39,7 +39,6 @@ class DDPGAgent:
         self._replay_buffer = replay_buffer
         self._policy_model = Sequential(Linear(24, 16), ReLU(), Linear(16, 4), Tanh())
         self._q_model = Sequential(
-            # TODO Check how to insert policy model
             Linear(24 + 4, 16),
             ReLU(),
             Linear(16, 1),
@@ -70,9 +69,8 @@ class DDPGAgent:
     def update(self, new_state: np.ndarray, reward: float, done: bool) -> None:
         self._replay_buffer.add(self._state, self._action, reward, done, new_state)
 
-        # if not self._replay_buffer.is_full():
-        #    return
-        # TODO When to start learning
+        if not self._replay_buffer.is_full():
+            return
         self._train()
 
     def _train(self) -> None:
