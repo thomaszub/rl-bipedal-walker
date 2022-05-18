@@ -8,7 +8,6 @@ from omegaconf import DictConfig
 from torch.nn import Linear, MSELoss, ReLU, Sequential, Tanh
 from torch.optim import Adam
 
-from model import PolicyBasedQModel
 from replay_buffer import ReplayBuffer
 
 
@@ -48,9 +47,6 @@ class DDPGAgent:
         )
         self._target_policy_model = deepcopy(self._policy_model)
         self._target_q_model = deepcopy(self._q_model)
-        self._target_pq_model = PolicyBasedQModel(
-            self._target_q_model, self._target_policy_model
-        )
         self._train_mode = True
         self._q_loss = MSELoss()
         self._q_optim = Adam(params=self._q_model.parameters())
@@ -82,26 +78,33 @@ class DDPGAgent:
             self.config.batch_size
         )
 
-        input = torch.tensor(next_state).float()
-        target_q = self._target_pq_model(input).detach().numpy().reshape(-1)
-        target = (reward + self.config.discount * (1.0 - done) * target_q).reshape(
-            -1, 1
+        state_t = torch.tensor(state).float()
+        action_t = torch.tensor(action).float()
+        next_state_t = torch.tensor(next_state).float()
+        next_state_action = self._state_action(
+            next_state_t, self._target_policy_model(next_state_t)
         )
-        state_action = torch.tensor(np.concatenate((state, action), 1)).float()
+        target_q = self._target_q_model(next_state_action).detach().numpy().reshape(-1)
+        target_t = torch.tensor(
+            (reward + self.config.discount * (1.0 - done) * target_q).reshape(-1, 1)
+        ).float()
+        state_action_q = self._state_action(state_t, action_t)
 
-        loss = self._q_loss(self._q_model(state_action), torch.tensor(target).float())
+        loss = self._q_loss(self._q_model(state_action_q), target_t)
         self._q_optim.zero_grad()
         loss.backward()
         self._q_optim.step()
 
-        state_t = torch.tensor(state).float()
-        state_action = torch.cat((state_t, self._policy_model(state_t)), 1)
-        loss = self._policy_loss(self._q_model(state_action))
+        state_action_p = self._state_action(state_t, self._policy_model(state_t))
+        loss = self._policy_loss(self._q_model(state_action_p))
         self._policy_optim.zero_grad()
         loss.backward()
         self._policy_optim.step()
 
         self._update_target_models()
+
+    def _state_action(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        return torch.cat((state, action), 1)
 
     @torch.no_grad()
     def _update_target_models(self) -> None:
