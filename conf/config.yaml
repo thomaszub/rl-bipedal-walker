@@ -4,3 +4,4 @@ agent:
   polyak: 0.95
   discount: 0.99
   batch_size: 32
+  std_dev: 0.25

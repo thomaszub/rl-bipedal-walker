@@ -21,10 +21,13 @@ class DDPGAgentConfig:
     polyak: float
     discount: float
     batch_size: int
+    std_dev: float
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "DDPGAgentConfig":
-        return DDPGAgentConfig(config.polyak, config.discount, config.batch_size)
+        return DDPGAgentConfig(
+            config.polyak, config.discount, config.batch_size, config.std_dev
+        )
 
 
 class DDPGAgent:
@@ -59,9 +62,10 @@ class DDPGAgent:
 
     def action(self, state: np.ndarray) -> np.ndarray:
         input = torch.tensor(state).float().view(1, -1)
-        action = (
-            self._policy_model(input).detach().numpy().reshape(-1)
-        )  # TODO Add random noice
+        action = self._policy_model(input).detach().numpy().reshape(-1)
+        if self._train_mode:
+            noise = np.random.normal(scale=self.config.std_dev, size=4)
+            action = np.clip(action + noise, -1.0, 1.0)
         self._state = deepcopy(state)
         self._action = deepcopy(action)
         return action

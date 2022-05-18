@@ -33,11 +33,17 @@ def main(cfg: DictConfig):
     )
     agent_config = DDPGAgentConfig.fromDictConfig(cfg.agent)
     agent = DDPGAgent(agent_config, env.action_space, buffer_state_action)
+    agent.train_mode(True)
 
+    rewards = []
     with trange(0, 1000) as tr:
         for _ in tr:
             reward = run(env, agent, False)
+            rewards.append(reward)
             tr.set_postfix(reward=reward)
+    print("rewards:\n")
+
+    print("\n".join(map(lambda r: str(r), rewards)))
 
 
 if __name__ == "__main__":
