@@ -46,7 +46,13 @@ class DDPGAgent:
             Linear(16, 1),
         )
         self._target_policy_model = deepcopy(self._policy_model)
+        for p in self._target_policy_model.parameters():
+            p.requires_grad = False
+
         self._target_q_model = deepcopy(self._q_model)
+        for p in self._target_q_model.parameters():
+            p.requires_grad = False
+
         self._train_mode = True
         self._q_loss = MSELoss()
         self._q_optim = Adam(params=self._q_model.parameters())
@@ -67,6 +73,9 @@ class DDPGAgent:
         return action
 
     def update(self, new_state: np.ndarray, reward: float, done: bool) -> None:
+        if not self._train_mode:
+            return
+
         self._replay_buffer.add(self._state, self._action, reward, done, new_state)
 
         if not self._replay_buffer.is_full():
@@ -81,23 +90,26 @@ class DDPGAgent:
         state_t = torch.tensor(state).float()
         action_t = torch.tensor(action).float()
         next_state_t = torch.tensor(next_state).float()
-        next_state_action = self._state_action(
-            next_state_t, self._target_policy_model(next_state_t)
-        )
-        target_q = self._target_q_model(next_state_action).detach().numpy().reshape(-1)
-        target_t = torch.tensor(
-            (reward + self.config.discount * (1.0 - done) * target_q).reshape(-1, 1)
-        ).float()
+        with torch.no_grad():
+            next_state_action = self._state_action(
+                next_state_t, self._target_policy_model(next_state_t)
+            )
+            target_q = (
+                self._target_q_model(next_state_action).detach().numpy().reshape(-1)
+            )
+            target_t = torch.tensor(
+                (reward + self.config.discount * (1.0 - done) * target_q).reshape(-1, 1)
+            ).float()
         state_action_q = self._state_action(state_t, action_t)
 
-        loss = self._q_loss(self._q_model(state_action_q), target_t)
         self._q_optim.zero_grad()
+        loss = self._q_loss(self._q_model(state_action_q), target_t)
         loss.backward()
         self._q_optim.step()
 
+        self._policy_optim.zero_grad()
         state_action_p = self._state_action(state_t, self._policy_model(state_t))
         loss = self._policy_loss(self._q_model(state_action_p))
-        self._policy_optim.zero_grad()
         loss.backward()
         self._policy_optim.step()
 
