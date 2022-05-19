@@ -42,8 +42,9 @@ def main(cfg: DictConfig):
             rewards.append(reward)
             tr.set_postfix(reward=reward)
     print("rewards:\n")
-
     print("\n".join(map(lambda r: str(r), rewards)))
+
+    agent.save()
 
 
 if __name__ == "__main__":
