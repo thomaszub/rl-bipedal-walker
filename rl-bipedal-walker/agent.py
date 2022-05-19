@@ -1,3 +1,4 @@
+import pickle
 from copy import deepcopy
 from dataclasses import dataclass
 
@@ -21,11 +22,16 @@ class DDPGAgentConfig:
     discount: float
     batch_size: int
     std_dev: float
+    filename: str
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "DDPGAgentConfig":
         return DDPGAgentConfig(
-            config.polyak, config.discount, config.batch_size, config.std_dev
+            config.polyak,
+            config.discount,
+            config.batch_size,
+            config.std_dev,
+            config.filename,
         )
 
 
@@ -131,3 +137,12 @@ class DDPGAgent:
         for name, p in self._target_q_model.named_parameters():
             p_update = polyak * p + (1.0 - polyak) * self._q_model.get_parameter(name)
             p.copy_(p_update)
+
+    def save(self) -> None:
+        filename = self.config.filename
+        try:
+            with open(filename, "wb") as f:
+                print(f"Info: Saving agent to {filename}")
+                pickle.dump(self, f)
+        except OSError:
+            print(f"Error: Could not save agent to {filename}")
