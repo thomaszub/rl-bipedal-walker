@@ -137,15 +137,15 @@ class DDPGAgent:
     def _update_target_models(self) -> None:
         polyak = self.config.polyak
 
-        for name, p in self._target_policy_model.named_parameters():
-            p_update = polyak * p + (1.0 - polyak) * self._policy_model.get_parameter(
-                name
-            )
-            p.copy_(p_update)
+        for p_targ, p in zip(
+            self._target_policy_model.parameters(), self._policy_model.parameters()
+        ):
+            p_targ.copy_(polyak * p_targ + (1.0 - polyak) * p)
 
-        for name, p in self._target_q_model.named_parameters():
-            p_update = polyak * p + (1.0 - polyak) * self._q_model.get_parameter(name)
-            p.copy_(p_update)
+        for p_targ, p in zip(
+            self._target_q_model.parameters(), self._q_model.parameters()
+        ):
+            p_targ.copy_(polyak * p_targ + (1.0 - polyak) * p)
 
     def save(self) -> None:
         filename = self.config.filename
