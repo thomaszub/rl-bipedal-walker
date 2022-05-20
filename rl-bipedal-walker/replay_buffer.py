@@ -52,16 +52,13 @@ class ReplayBuffer:
     def sample(
         self, batch_size: int
     ) -> Tuple[np.ndarray, np.ndarray, float, bool, np.ndarray]:
-        def choice(buffer: np.ndarray) -> np.ndarray:
-            rng = np.random.default_rng()
-            return rng.choice(buffer, batch_size, replace=False)
-
+        idx = np.random.randint(0, self.config.size, batch_size)
         return (
-            choice(self._replay_buffer_state),
-            choice(self._replay_buffer_action),
-            choice(self._replay_buffer_reward),
-            choice(self._replay_buffer_done),
-            choice(self._replay_buffer_next_state),
+            self._replay_buffer_state[idx],
+            self._replay_buffer_action[idx],
+            self._replay_buffer_reward[idx],
+            self._replay_buffer_done[idx],
+            self._replay_buffer_next_state[idx],
         )
 
     def is_full(self) -> bool:
