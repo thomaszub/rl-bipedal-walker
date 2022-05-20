@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Tuple
 
@@ -38,11 +39,11 @@ class ReplayBuffer:
         done: bool,
         next_state: np.ndarray,
     ) -> None:
-        self._replay_buffer_state[self._next_entry_id] = state
-        self._replay_buffer_action[self._next_entry_id] = action
-        self._replay_buffer_reward[self._next_entry_id] = reward
-        self._replay_buffer_done[self._next_entry_id] = done
-        self._replay_buffer_next_state[self._next_entry_id] = next_state
+        self._replay_buffer_state[self._next_entry_id] = deepcopy(state)
+        self._replay_buffer_action[self._next_entry_id] = deepcopy(action)
+        self._replay_buffer_reward[self._next_entry_id] = deepcopy(reward)
+        self._replay_buffer_done[self._next_entry_id] = deepcopy(done)
+        self._replay_buffer_next_state[self._next_entry_id] = deepcopy(next_state)
         self._next_entry_id += 1
         if self._next_entry_id >= self.config.size:
             self._next_entry_id = 0
