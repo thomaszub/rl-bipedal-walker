@@ -1,5 +1,5 @@
 training:
-  episodes: 1000
+  steps: 200000
 replay_buffer:
   size: 8192
 agent:
