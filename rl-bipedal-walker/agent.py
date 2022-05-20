@@ -45,13 +45,15 @@ class DDPGAgent:
         self.config = config
         self._action_space = action_space
         self._replay_buffer = replay_buffer
-        self._policy_model = Sequential(Linear(24, 16), ReLU(), Linear(16, 4), Tanh())
+        self._policy_model = Sequential(
+            Linear(24, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 4), Tanh()
+        )
         self._q_model = Sequential(
-            Linear(24 + 4, 16),
+            Linear(24 + 4, 128),
             ReLU(),
-            Linear(16, 8),
+            Linear(128, 128),
             ReLU(),
-            Linear(8, 1),
+            Linear(128, 1),
         )
         self._target_policy_model = deepcopy(self._policy_model)
         for p in self._target_policy_model.parameters():
