@@ -83,15 +83,20 @@ class DDPGAgent:
                 action = np.clip(action + noise, -1.0, 1.0)
             else:
                 action = self._action_space.sample()
-        self._state = deepcopy(state)
-        self._action = deepcopy(action)
         return action
 
-    def update(self, new_state: np.ndarray, reward: float, done: bool) -> None:
+    def update(
+        self,
+        state: np.ndarray,
+        action: np.ndarray,
+        reward: float,
+        done: bool,
+        new_state: np.ndarray,
+    ) -> None:
         if not self._train_mode:
             return
 
-        self._replay_buffer.add(self._state, self._action, reward, done, new_state)
+        self._replay_buffer.add(state, action, reward, done, new_state)
 
         if not self._replay_buffer.is_full():
             return

@@ -14,8 +14,9 @@ def run(env: gym.Env, agent: DDPGAgent, render: bool) -> float:
     while not done:
         if render:
             env.render()
-        new_state, reward, done, _ = env.step(agent.action(state))
-        agent.update(new_state, reward, done)
+        action = agent.action(state)
+        new_state, reward, done, _ = env.step(action)
+        agent.update(state, action, reward, done, new_state)
         sum_reward += reward
         state = new_state
 
