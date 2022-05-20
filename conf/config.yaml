@@ -8,3 +8,4 @@ agent:
   discount: 0.99
   batch_size: 32
   std_dev: 0.25
+  init_random_steps: 8192

@@ -23,6 +23,7 @@ class DDPGAgentConfig:
     batch_size: int
     std_dev: float
     filename: str
+    init_random_steps: int
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "DDPGAgentConfig":
@@ -32,6 +33,7 @@ class DDPGAgentConfig:
             config.batch_size,
             config.std_dev,
             config.filename,
+            config.init_random_steps,
         )
 
 
@@ -49,7 +51,9 @@ class DDPGAgent:
         self._q_model = Sequential(
             Linear(24 + 4, 16),
             ReLU(),
-            Linear(16, 1),
+            Linear(16, 8),
+            ReLU(),
+            Linear(8, 1),
         )
         self._target_policy_model = deepcopy(self._policy_model)
         for p in self._target_policy_model.parameters():
@@ -64,6 +68,7 @@ class DDPGAgent:
         self._q_optim = Adam(params=self._q_model.parameters())
         self._policy_loss = q_loss
         self._policy_optim = Adam(params=self._policy_model.parameters())
+        self._steps = 0
 
     def train_mode(self, on: bool) -> None:
         self._train_mode = on
@@ -72,8 +77,12 @@ class DDPGAgent:
         input = torch.tensor(state).float().view(1, -1)
         action = self._policy_model(input).detach().numpy().reshape(-1)
         if self._train_mode:
-            noise = np.random.normal(scale=self.config.std_dev, size=4)
-            action = np.clip(action + noise, -1.0, 1.0)
+            self._steps += 1
+            if self._steps > self.config.init_random_steps:
+                noise = np.random.normal(scale=self.config.std_dev, size=4)
+                action = np.clip(action + noise, -1.0, 1.0)
+            else:
+                action = self._action_space.sample()
         self._state = deepcopy(state)
         self._action = deepcopy(action)
         return action
