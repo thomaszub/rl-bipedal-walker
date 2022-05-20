@@ -36,7 +36,7 @@ def main(cfg: DictConfig):
     agent.train_mode(True)
 
     rewards = []
-    with trange(0, 1000) as tr:
+    with trange(0, cfg.training.episodes) as tr:
         for _ in tr:
             reward = run(env, agent, False)
             rewards.append(reward)
