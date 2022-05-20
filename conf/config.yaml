@@ -4,8 +4,8 @@ replay_buffer:
   size: 4096
 agent:
   filename: agent.pkl
-  polyak: 0.95
+  polyak: 0.99
   discount: 0.99
-  batch_size: 32
-  std_dev: 0.25
+  batch_size: 64
+  std_dev: 0.1
   init_random_steps: 8192
