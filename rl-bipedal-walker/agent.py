@@ -23,7 +23,6 @@ class DDPGAgentConfig:
     batch_size: int
     std_dev: float
     filename: str
-    init_random_steps: int
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "DDPGAgentConfig":
@@ -33,7 +32,6 @@ class DDPGAgentConfig:
             config.batch_size,
             config.std_dev,
             config.filename,
-            config.init_random_steps,
         )
 
 
@@ -78,7 +76,7 @@ class DDPGAgent:
         action = self._policy_model(input).detach().numpy().reshape(-1)
         if self._train_mode:
             self._steps += 1
-            if self._steps > self.config.init_random_steps:
+            if self._replay_buffer.is_full():
                 noise = np.random.normal(scale=self.config.std_dev, size=4)
                 action = np.clip(action + noise, -1.0, 1.0)
             else:
@@ -97,10 +95,8 @@ class DDPGAgent:
             return
 
         self._replay_buffer.add(state, action, reward, done, new_state)
-
-        if not self._replay_buffer.is_full():
-            return
-        self._train()
+        if self._replay_buffer.is_full():
+            self._train()
 
     def _train(self) -> None:
         state, action, reward, done, next_state = self._replay_buffer.sample(
