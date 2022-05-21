@@ -32,8 +32,8 @@ def main(cfg: DictConfig):
     print(f"State shape: {env.observation_space.shape}")
     print(f"Action shape: {env.action_space.shape}")
 
-    if cfg.agent == "ddpg":
-        agent_config = DDPGAgentConfig.fromDictConfig(cfg.ddpg)
+    if cfg.agent.name == "ddpg":
+        agent_config = DDPGAgentConfig.fromDictConfig(cfg.agent)
         agent = DDPGAgent(agent_config)
     else:
         raise ValueError(f"{cfg.agent} is not a know agent")
