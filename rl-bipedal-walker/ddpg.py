@@ -1,4 +1,3 @@
-import pickle
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import List
@@ -108,15 +107,6 @@ class DDPGAgent(Agent):
                     state = new_state
 
         return rewards
-
-    def save(self) -> None:
-        filename = self.config.filename
-        try:
-            with open(filename, "wb") as f:
-                print(f"Info: Saving agent to {filename}")
-                pickle.dump(self, f)
-        except OSError:
-            print(f"Error: Could not save agent to {filename}")
 
     def _optimize_models(self, batch: Batch) -> None:
         state, action, reward, done, next_state = batch
