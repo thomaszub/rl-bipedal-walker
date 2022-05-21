@@ -1,3 +1,5 @@
+test:
+  episodes: 50
 agent:
   filename: agent.pkl
   steps: 200000

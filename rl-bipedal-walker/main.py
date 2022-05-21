@@ -1,8 +1,27 @@
+from typing import List
 import gym
 import hydra
 from omegaconf import DictConfig
+from tqdm import trange
 
 from agent import DDPGAgent, DDPGAgentConfig
+
+
+def test(env: gym.Env, agent: DDPGAgent, episodes: int) -> List[float]:
+    rewards = []
+    sum_reward = 0
+    with trange(0, episodes) as tep:
+        for episode in tep:
+            tep.set_postfix(curr_episode=episode, last_sum_reward=sum_reward)
+            state, done, sum_reward = env.reset(), False, 0
+            while not done:
+                action = agent.action(state)
+                new_state, reward, done, _ = env.step(action)
+                sum_reward += reward
+                state = new_state
+            rewards.append(sum_reward)
+
+    return rewards
 
 
 @hydra.main(config_path="../conf", config_name="config")
@@ -13,12 +32,15 @@ def main(cfg: DictConfig):
     agent_config = DDPGAgentConfig.fromDictConfig(cfg.agent)
     agent = DDPGAgent(agent_config)
 
-    rewards = agent.train(env)
-
-    with open("rewards.txt", "w") as f:
-        f.write("\n".join(map(lambda r: str(r), rewards)))
-
+    rewards_train = agent.train(env)
     agent.save()
+
+    with open("rewards_train.txt", "w") as f:
+        f.write("\n".join(map(lambda r: str(r), rewards_train)))
+
+    rewards_test = test(env, agent, cfg.test.episodes)
+    with open("rewards_test.txt", "w") as f:
+        f.write("\n".join(map(lambda r: str(r), rewards_test)))
 
 
 if __name__ == "__main__":
