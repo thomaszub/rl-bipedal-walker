@@ -65,7 +65,6 @@ class DDPGAgent(Agent):
         self._q_optim = Adam(params=self._q_model.parameters())
         self._policy_loss = q_loss
         self._policy_optim = Adam(params=self._policy_model.parameters())
-        self._steps = 0
 
     def action(self, state: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
         input = torch.tensor(state).view(1, -1)
