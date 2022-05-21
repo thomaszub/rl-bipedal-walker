@@ -1,13 +1,15 @@
 from typing import List
+
 import gym
 import hydra
 from omegaconf import DictConfig
 from tqdm import trange
 
-from agent import DDPGAgent, DDPGAgentConfig
+from agent import Agent
+from ddpg import DDPGAgent, DDPGAgentConfig
 
 
-def test(env: gym.Env, agent: DDPGAgent, episodes: int) -> List[float]:
+def test(env: gym.Env, agent: Agent, episodes: int) -> List[float]:
     rewards = []
     sum_reward = 0
     with trange(0, episodes) as tep:
@@ -29,11 +31,15 @@ def main(cfg: DictConfig):
     env = gym.make("BipedalWalker-v3")
     print(f"State shape: {env.observation_space.shape}")
     print(f"Action shape: {env.action_space.shape}")
-    agent_config = DDPGAgentConfig.fromDictConfig(cfg.agent)
-    agent = DDPGAgent(agent_config)
+
+    if cfg.agent == "ddpg":
+        agent_config = DDPGAgentConfig.fromDictConfig(cfg.ddpg)
+        agent = DDPGAgent(agent_config)
+    else:
+        raise ValueError(f"{cfg.agent} is not a know agent")
 
     rewards_train = agent.train(env)
-    agent.save()
+    agent.save("agent.pkl")
 
     with open("rewards_train.txt", "w") as f:
         f.write("\n".join(map(lambda r: str(r), rewards_train)))
