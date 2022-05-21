@@ -1,13 +1,15 @@
 import pickle
 from copy import deepcopy
 from dataclasses import dataclass
+from typing import List
+import gym
 
 import numpy as np
 import torch
-from gym import Space
 from omegaconf import DictConfig
 from torch.nn import Linear, MSELoss, ReLU, Sequential, Tanh
 from torch.optim import Adam
+from tqdm import trange
 
 from replay_buffer import ReplayBuffer
 
@@ -23,6 +25,8 @@ class DDPGAgentConfig:
     batch_size: int
     std_dev: float
     filename: str
+    steps: int
+    replay_buffer_size: int
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "DDPGAgentConfig":
@@ -32,19 +36,14 @@ class DDPGAgentConfig:
             config.batch_size,
             config.std_dev,
             config.filename,
+            config.steps,
+            config.replay_buffer_size,
         )
 
 
 class DDPGAgent:
-    def __init__(
-        self,
-        config: DDPGAgentConfig,
-        action_space: Space[np.ndarray],
-        replay_buffer: ReplayBuffer,
-    ) -> None:
+    def __init__(self, config: DDPGAgentConfig) -> None:
         self.config = config
-        self._action_space = action_space
-        self._replay_buffer = replay_buffer
         self._policy_model = Sequential(
             Linear(24, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 4), Tanh()
         )
@@ -63,47 +62,64 @@ class DDPGAgent:
         for p in self._target_q_model.parameters():
             p.requires_grad = False
 
-        self._train_mode = True
         self._q_loss = MSELoss()
         self._q_optim = Adam(params=self._q_model.parameters())
         self._policy_loss = q_loss
         self._policy_optim = Adam(params=self._policy_model.parameters())
         self._steps = 0
 
-    def train_mode(self, on: bool) -> None:
-        self._train_mode = on
-
     def action(self, state: np.ndarray) -> np.ndarray:
         input = torch.tensor(state).float().view(1, -1)
-        action = self._policy_model(input).detach().numpy().reshape(-1)
-        if self._train_mode:
-            self._steps += 1
-            if self._replay_buffer.is_full():
-                noise = np.random.normal(scale=self.config.std_dev, size=4)
-                action = np.clip(action + noise, -1.0, 1.0)
-            else:
-                action = self._action_space.sample()
-        return action
+        return self._policy_model(input).detach().numpy().reshape(-1)
 
-    def update(
-        self,
-        state: np.ndarray,
-        action: np.ndarray,
-        reward: float,
-        done: bool,
-        new_state: np.ndarray,
-    ) -> None:
-        if not self._train_mode:
-            return
-
-        self._replay_buffer.add(state, action, reward, done, new_state)
-        if self._replay_buffer.is_full():
-            self._train()
-
-    def _train(self) -> None:
-        state, action, reward, done, next_state = self._replay_buffer.sample(
-            self.config.batch_size
+    def train(self, env: gym.Env) -> List[float]:
+        buffer = ReplayBuffer(
+            self.config.replay_buffer_size,
+            env.observation_space.shape,
+            env.action_space.shape,
         )
+        rewards = []
+        state, done, sum_reward = env.reset(), False, 0
+        curr_episode = 1
+        with trange(0, self.config.steps) as tr:
+            tr.set_postfix(curr_episode=curr_episode, last_sum_reward=sum_reward)
+            for _ in tr:
+                if buffer.is_full():
+                    action = self.action(state)
+                    noise = np.random.normal(scale=self.config.std_dev, size=4)
+                    action = np.clip(action + noise, -1.0, 1.0)
+                else:
+                    action = env.action_space.sample()
+
+                new_state, reward, done, _ = env.step(action)
+                sum_reward += reward
+                buffer.add(state, action, reward, done, new_state)
+                if buffer.is_full():
+                    batch = buffer.sample(self.config.batch_size)
+                    self._optimize_models(batch)
+                if done:
+                    curr_episode += 1
+                    rewards.append(sum_reward)
+                    tr.set_postfix(
+                        curr_episode=curr_episode, last_sum_reward=sum_reward
+                    )
+                    state, done, sum_reward = env.reset(), False, 0
+                else:
+                    state = new_state
+
+        return rewards
+
+    def save(self) -> None:
+        filename = self.config.filename
+        try:
+            with open(filename, "wb") as f:
+                print(f"Info: Saving agent to {filename}")
+                pickle.dump(self, f)
+        except OSError:
+            print(f"Error: Could not save agent to {filename}")
+
+    def _optimize_models(self, batch) -> None:  # TODO Typing
+        state, action, reward, done, next_state = batch
 
         state_t = torch.tensor(state).float()
         action_t = torch.tensor(action).float()
@@ -149,12 +165,3 @@ class DDPGAgent:
             self._target_q_model.parameters(), self._q_model.parameters()
         ):
             p_targ.copy_(polyak * p_targ + (1.0 - polyak) * p)
-
-    def save(self) -> None:
-        filename = self.config.filename
-        try:
-            with open(filename, "wb") as f:
-                print(f"Info: Saving agent to {filename}")
-                pickle.dump(self, f)
-        except OSError:
-            print(f"Error: Could not save agent to {filename}")

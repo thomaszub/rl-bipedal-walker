@@ -1,9 +1,7 @@
-training:
-  steps: 200000
-replay_buffer:
-  size: 16384
 agent:
   filename: agent.pkl
+  steps: 200000
+  replay_buffer_size: 16384
   polyak: 0.99
   discount: 0.99
   batch_size: 64
