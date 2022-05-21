@@ -2,6 +2,15 @@ from copy import deepcopy
 from typing import Tuple
 
 import numpy as np
+import numpy.typing as npt
+
+Batch = Tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+]
 
 
 class ReplayBuffer:
@@ -38,7 +47,7 @@ class ReplayBuffer:
             self._next_entry_id = 0
             self._is_full = True
 
-    def sample(self, batch_size: int):  # TODO Typing
+    def sample(self, batch_size: int) -> Batch:
         idx = np.random.randint(0, self._size, batch_size)
         return (
             self._replay_buffer_state[idx],

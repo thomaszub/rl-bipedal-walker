@@ -11,7 +11,7 @@ from torch.nn import Linear, MSELoss, ReLU, Sequential, Tanh
 from torch.optim import Adam
 from tqdm import trange
 
-from replay_buffer import ReplayBuffer
+from replay_buffer import Batch, ReplayBuffer
 
 
 def q_loss(pred: torch.Tensor) -> torch.Tensor:
@@ -118,7 +118,7 @@ class DDPGAgent:
         except OSError:
             print(f"Error: Could not save agent to {filename}")
 
-    def _optimize_models(self, batch) -> None:  # TODO Typing
+    def _optimize_models(self, batch: Batch) -> None:
         state, action, reward, done, next_state = batch
 
         state_t = torch.tensor(state).float()
