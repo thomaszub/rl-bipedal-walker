@@ -5,11 +5,11 @@ import numpy as np
 import numpy.typing as npt
 
 Batch = Tuple[
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
+    npt.NDArray[np.float32],
+    npt.NDArray[np.float32],
+    npt.NDArray[np.float32],
+    npt.NDArray[np.float32],
+    npt.NDArray[np.float32],
 ]
 
 
@@ -21,11 +21,17 @@ class ReplayBuffer:
         action_shape: Tuple[int],
     ) -> None:
         self._size = size
-        self._replay_buffer_state = np.zeros((self._size,) + state_shape)
-        self._replay_buffer_action = np.zeros((self._size,) + action_shape)
-        self._replay_buffer_reward = np.zeros((self._size,))
-        self._replay_buffer_done = np.zeros((self._size,))
-        self._replay_buffer_next_state = np.zeros((self._size,) + state_shape)
+        self._replay_buffer_state = np.zeros(
+            (self._size,) + state_shape, dtype=np.float32
+        )
+        self._replay_buffer_action = np.zeros(
+            (self._size,) + action_shape, dtype=np.float32
+        )
+        self._replay_buffer_reward = np.zeros((self._size,), dtype=np.float32)
+        self._replay_buffer_done = np.zeros((self._size,), dtype=np.float32)
+        self._replay_buffer_next_state = np.zeros(
+            (self._size,) + state_shape, dtype=np.float32
+        )
         self._next_entry_id = 0
         self._is_full = False
 

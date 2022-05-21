@@ -5,6 +5,7 @@ from typing import List
 import gym
 
 import numpy as np
+import numpy.typing as npt
 import torch
 from omegaconf import DictConfig
 from torch.nn import Linear, MSELoss, ReLU, Sequential, Tanh
@@ -68,8 +69,8 @@ class DDPGAgent:
         self._policy_optim = Adam(params=self._policy_model.parameters())
         self._steps = 0
 
-    def action(self, state: np.ndarray) -> np.ndarray:
-        input = torch.tensor(state).float().view(1, -1)
+    def action(self, state: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
+        input = torch.tensor(state).view(1, -1)
         return self._policy_model(input).detach().numpy().reshape(-1)
 
     def train(self, env: gym.Env) -> List[float]:
@@ -121,9 +122,9 @@ class DDPGAgent:
     def _optimize_models(self, batch: Batch) -> None:
         state, action, reward, done, next_state = batch
 
-        state_t = torch.tensor(state).float()
-        action_t = torch.tensor(action).float()
-        next_state_t = torch.tensor(next_state).float()
+        state_t = torch.tensor(state)
+        action_t = torch.tensor(action)
+        next_state_t = torch.tensor(next_state)
         with torch.no_grad():
             next_state_action = self._state_action(
                 next_state_t, self._target_policy_model(next_state_t)
@@ -133,7 +134,7 @@ class DDPGAgent:
             )
             target_t = torch.tensor(
                 (reward + self.config.discount * (1.0 - done) * target_q).reshape(-1, 1)
-            ).float()
+            )
         state_action_q = self._state_action(state_t, action_t)
 
         self._q_optim.zero_grad()
