@@ -47,8 +47,8 @@ def main(cfg: DictConfig):
 
     rewards = train(env, agent, cfg.training.steps)
 
-    print("rewards:\n")
-    print("\n".join(map(lambda r: str(r), rewards)))
+    with open("rewards.txt", "w") as f:
+        f.write("\n".join(map(lambda r: str(r), rewards)))
 
     agent.save()
 
