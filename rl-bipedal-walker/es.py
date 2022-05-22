@@ -12,11 +12,11 @@ from agent import Agent
 
 @dataclass()
 class ESAgentConfig:
-    steps: int
+    generations: int
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "ESAgentConfig":
-        return ESAgentConfig(config.steps)
+        return ESAgentConfig(config.generations)
 
 
 class ESAgent(Agent):
@@ -28,25 +28,20 @@ class ESAgent(Agent):
 
     def train(self, env: gym.Env) -> List[float]:
         rewards = []
-        state, done, sum_reward = env.reset(), False, 0
-        curr_episode = 1
-        with trange(0, self.config.steps) as tr:
-            tr.set_postfix(curr_episode=curr_episode, last_sum_reward=sum_reward)
-            for _ in tr:
-                action = self.action(state)
+        sum_reward = 0
+        with trange(0, self.config.generations) as tgen:
+            for generation in tgen:
+                tgen.set_postfix(generation=generation, last_sum_reward=sum_reward)
+                state, done, sum_reward = env.reset(), False, 0
+                while not done:
+                    action = self.action(state)
 
-                new_state, reward, done, _ = env.step(action)
-                sum_reward += reward
+                    new_state, reward, done, _ = env.step(action)
+                    sum_reward += reward
 
-                # TODO Optimize
-                if done:
-                    curr_episode += 1
-                    rewards.append(sum_reward)
-                    tr.set_postfix(
-                        curr_episode=curr_episode, last_sum_reward=sum_reward
-                    )
-                    state, done, sum_reward = env.reset(), False, 0
-                else:
+                    # TODO Optimize
                     state = new_state
+
+                rewards.append(sum_reward)
 
         return rewards
