@@ -12,6 +12,7 @@ from torch.optim import Adam
 from tqdm import trange
 
 from agent import Agent
+from core import polyak_update
 from replay_buffer import Batch, ReplayBuffer
 
 
@@ -136,21 +137,8 @@ class DDPGAgent(Agent):
         loss.backward()
         self._policy_optim.step()
 
-        self._update_target_models()
+        polyak_update(self._policy_model, self._target_policy_model, self.config.polyak)
+        polyak_update(self._q_model, self._target_q_model, self.config.polyak)
 
     def _state_action(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         return torch.cat((state, action), 1)
-
-    @torch.no_grad()
-    def _update_target_models(self) -> None:
-        polyak = self.config.polyak
-
-        for p_targ, p in zip(
-            self._target_policy_model.parameters(), self._policy_model.parameters()
-        ):
-            p_targ.copy_(polyak * p_targ + (1.0 - polyak) * p)
-
-        for p_targ, p in zip(
-            self._target_q_model.parameters(), self._q_model.parameters()
-        ):
-            p_targ.copy_(polyak * p_targ + (1.0 - polyak) * p)
