@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable
 
 import numpy as np
 import numpy.typing as npt
@@ -39,8 +39,8 @@ class LinearLayer(Layer):
         return self._func(input)
 
 
-class SequentialLayer(Layer):
-    def __init__(self, *layers: List[Layer]) -> None:
+class Model(Layer):
+    def __init__(self, *layers: LinearLayer) -> None:
         self._layers = layers
 
     def __call__(self, input: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
