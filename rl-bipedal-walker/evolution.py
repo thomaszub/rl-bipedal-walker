@@ -12,16 +12,16 @@ from core import Layer, LinearLayer, SequentialLayer, relu
 
 
 @dataclass()
-class ESAgentConfig:
+class EvolutionalAgentConfig:
     generations: int
 
     @staticmethod
-    def fromDictConfig(config: DictConfig) -> "ESAgentConfig":
-        return ESAgentConfig(config.generations)
+    def fromDictConfig(config: DictConfig) -> "EvolutionalAgentConfig":
+        return EvolutionalAgentConfig(config.generations)
 
 
-class ESAgent(Agent):
-    def __init__(self, config: ESAgentConfig) -> None:
+class EvolutionalAgent(Agent):
+    def __init__(self, config: EvolutionalAgentConfig) -> None:
         self.config = config
         self._policy_model = SequentialLayer(
             LinearLayer(24, 64, activation=relu),

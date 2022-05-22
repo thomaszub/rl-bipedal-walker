@@ -7,7 +7,7 @@ from tqdm import trange
 
 from agent import Agent
 from ddpg import DDPGAgent, DDPGAgentConfig
-from es import ESAgent, ESAgentConfig
+from evolution import EvolutionalAgent, EvolutionalAgentConfig
 
 
 def test(env: gym.Env, agent: Agent, episodes: int) -> List[float]:
@@ -36,9 +36,9 @@ def main(cfg: DictConfig):
     if cfg.agent.name == "ddpg":
         agent_config = DDPGAgentConfig.fromDictConfig(cfg.agent)
         agent = DDPGAgent(agent_config)
-    elif cfg.agent.name == "es":
-        agent_config = ESAgentConfig.fromDictConfig(cfg.agent)
-        agent = ESAgent(agent_config)
+    elif cfg.agent.name == "evolutional":
+        agent_config = EvolutionalAgentConfig.fromDictConfig(cfg.agent)
+        agent = EvolutionalAgent(agent_config)
     else:
         raise ValueError(f"{cfg.agent} is not a know agent")
 
