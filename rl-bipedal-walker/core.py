@@ -1,4 +1,4 @@
-from typing import Callable, List, Tuple
+from typing import Callable, List
 
 import numpy as np
 import numpy.typing as npt
@@ -21,11 +21,14 @@ def relu(x: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
 
 
 class LinearLayer(Layer):
-    def __init__(self, size: Tuple[int, int], activation: Activation = None) -> None:
-        self.W = np.random.uniform(-1.0, 1.0, size=(size[0], size[1])).astype(
+    def __init__(
+        self, in_size: int, out_size: int, activation: Activation = None
+    ) -> None:
+        self.size = (in_size, out_size)
+        self.W = np.random.uniform(-1.0, 1.0, size=(in_size, out_size)).astype(
             np.float32
         )
-        self.b = np.random.uniform(-1.0, 1.0, size=size[1]).astype(np.float32)
+        self.b = np.random.uniform(-1.0, 1.0, size=out_size).astype(np.float32)
         self.activation = activation
         if activation is not None:
             self._func = lambda x: self.activation(np.add(np.matmul(x, self.W), self.b))
@@ -37,7 +40,7 @@ class LinearLayer(Layer):
 
 
 class SequentialLayer(Layer):
-    def __init__(self, layers: List[Layer]) -> None:
+    def __init__(self, *layers: List[Layer]) -> None:
         self._layers = layers
 
     def __call__(self, input: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
