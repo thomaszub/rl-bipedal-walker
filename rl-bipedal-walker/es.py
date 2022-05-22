@@ -8,6 +8,7 @@ from omegaconf import DictConfig
 from tqdm import trange
 
 from agent import Agent
+from core import Layer, LinearLayer, SequentialLayer, relu
 
 
 @dataclass()
@@ -22,9 +23,14 @@ class ESAgentConfig:
 class ESAgent(Agent):
     def __init__(self, config: ESAgentConfig) -> None:
         self.config = config
+        self._policy_model = SequentialLayer(
+            LinearLayer(24, 64, activation=relu),
+            LinearLayer(64, 32, activation=relu),
+            LinearLayer(32, 4, activation=np.tanh),
+        )
 
     def action(self, state: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
-        return np.random.uniform(-1.0, 1.0, size=4)
+        return self._policy_model(state)
 
     def train(self, env: gym.Env) -> List[float]:
         rewards = []
@@ -32,16 +38,19 @@ class ESAgent(Agent):
         with trange(0, self.config.generations) as tgen:
             for generation in tgen:
                 tgen.set_postfix(generation=generation, last_sum_reward=sum_reward)
-                state, done, sum_reward = env.reset(), False, 0
-                while not done:
-                    action = self.action(state)
 
-                    new_state, reward, done, _ = env.step(action)
-                    sum_reward += reward
-
-                    # TODO Optimize
-                    state = new_state
+                sum_reward = self._play(env, self._policy_model)
 
                 rewards.append(sum_reward)
 
         return rewards
+
+    def _play(self, env: gym.Env, policy_model: Layer) -> float:
+        state, done, sum_reward = env.reset(), False, 0
+        while not done:
+            action = policy_model(state)
+            new_state, reward, done, _ = env.step(action)
+            sum_reward += reward
+            state = new_state
+
+        return sum_reward
