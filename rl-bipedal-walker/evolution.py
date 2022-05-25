@@ -15,7 +15,15 @@ from core import Layer, LinearLayer, Model, relu
 
 @dataclass(frozen=True)
 class Candidate:
-    model: Layer
+    model: Model
+    fitness: float
+    mut_W: List[npt.NDArray[np.float32]]
+    mut_b: List[npt.NDArray[np.float32]]
+
+
+@dataclass()
+class Parent:
+    model: Model
     fitness: float
 
 
@@ -24,11 +32,17 @@ class EvolutionalAgentConfig:
     generations: int
     mutations_per_parent: int
     mutation_strength: float
+    learning_rate: float
+    eval_parent_after_steps: int
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "EvolutionalAgentConfig":
         return EvolutionalAgentConfig(
-            config.generations, config.mutations_per_parent, config.mutation_strength
+            config.generations,
+            config.mutations_per_parent,
+            config.mutation_strength,
+            config.learning_rate,
+            config.eval_parent_after_steps,
         )
 
 
@@ -47,9 +61,9 @@ class EvolutionalAgent(Agent):
     def train(self, env: gym.Env) -> List[float]:
         executor = ProcessPoolExecutor()
         rewards = []
-        parent_replaced = 0
-        init_parent = deepcopy(self._policy_model)
-        parent = Candidate(init_parent, EvolutionalAgent._play(env, init_parent))
+        parent = Parent(
+            self._policy_model, EvolutionalAgent._play(env, self._policy_model)
+        )
         with trange(0, self.config.generations) as tgen:
             for generation in tgen:
                 tgen.set_postfix(
@@ -68,13 +82,32 @@ class EvolutionalAgent(Agent):
                 ]
                 children = [child_f.result() for child_f in as_completed(children_f)]
 
-                fitnesses = [child.fitness for child in children]
-                fittest_child = children[np.argmax(fitnesses)]
-                if fittest_child.fitness > parent.fitness:
-                    parent = fittest_child
-                    parent_replaced += 1
+                weights = [
+                    self.config.learning_rate
+                    / self.config.generations
+                    * (child.fitness - parent.fitness)
+                    for child in children
+                ]
+                for id, layer in enumerate(parent.model._layers):
+                    mut_W = np.sum(
+                        [
+                            weight * child.mut_W[id]
+                            for weight, child in zip(weights, children)
+                        ]
+                    )
+                    mut_b = np.sum(
+                        [
+                            weight * child.mut_W[id]
+                            for weight, child in zip(weights, children)
+                        ]
+                    )
+                    layer.W += mut_W
+                    layer.b += mut_b
 
-                rewards.append(parent.fitness)
+                if generation % self.config.eval_parent_after_steps == 0:
+                    fitness = self._play(env, parent.model)
+                    parent.fitness = fitness
+                    rewards.append(parent.fitness)
 
         self._policy_model = parent.model
         executor.shutdown()
@@ -86,11 +119,17 @@ class EvolutionalAgent(Agent):
     ) -> Candidate:
         env_c = deepcopy(env)
         child = deepcopy(parent)
+        mut_W = []
+        mut_b = []
         for layer in child._layers:
-            layer.W += np.random.normal(scale=mutation_strength, size=layer.W.shape)
-            layer.b += np.random.normal(scale=mutation_strength, size=layer.b.shape)
+            m_w = np.random.normal(scale=mutation_strength, size=layer.W.shape)
+            m_b = np.random.normal(scale=mutation_strength, size=layer.b.shape)
+            mut_W.append(m_w)
+            mut_b.append(m_b)
+            layer.W += m_w
+            layer.b += m_b
         fitness = EvolutionalAgent._play(env_c, child)
-        return Candidate(child, fitness)
+        return Candidate(child, fitness, mut_W, mut_b)
 
     @staticmethod
     def _play(env: gym.Env, policy_model: Layer) -> float:

@@ -1,4 +1,6 @@
 name: evolutional
-generations: 5000
-mutations_per_parent: 4
-mutation_strength: 0.25
+generations: 1000
+mutations_per_parent: 16
+mutation_strength: 0.1
+learning_rate: 0.02
+eval_parent_after_steps: 20
