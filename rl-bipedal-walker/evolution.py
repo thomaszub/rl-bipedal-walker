@@ -64,6 +64,9 @@ class EvolutionalAgent(Agent):
         parent = Parent(
             self._policy_model, EvolutionalAgent._play(env, self._policy_model)
         )
+        alpha = self.config.learning_rate / (
+            self.config.mutation_strength**2 * self.config.generations
+        )
         with trange(0, self.config.generations) as tgen:
             for generation in tgen:
                 tgen.set_postfix(
@@ -89,21 +92,12 @@ class EvolutionalAgent(Agent):
                     (fitness - mean_fitness) / std_fitness for fitness in fitnesses
                 ]
                 for id, layer in enumerate(parent.model._layers):
-                    # TODO Number of generations, mut strength, etc.
-                    mut_W = self.config.learning_rate * np.sum(
-                        [
-                            weight * child.mut_W[id]
-                            for weight, child in zip(weights, children)
-                        ]
-                    )
-                    mut_b = self.config.learning_rate * np.sum(
-                        [
-                            weight * child.mut_W[id]
-                            for weight, child in zip(weights, children)
-                        ]
-                    )
-                    layer.W += mut_W
-                    layer.b += mut_b
+                    mut_W = np.array([child.mut_W[id] for child in children])
+                    mut_b = np.array([child.mut_b[id] for child in children])
+                    mut_W_mean = np.dot(mut_W.T, weights)
+                    mut_b_mean = np.dot(mut_b.T, weights)
+                    layer.W += alpha * mut_W_mean.T
+                    layer.b += alpha * mut_b_mean.T
 
                 if generation % self.config.eval_parent_after_steps == 0:
                     fitness = self._play(env, parent.model)
