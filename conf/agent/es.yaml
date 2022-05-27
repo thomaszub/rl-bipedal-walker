@@ -1,4 +1,4 @@
-name: evolutional
+name: es
 generations: 2000
 mutations_per_parent: 32
 mutation_strength: 0.1

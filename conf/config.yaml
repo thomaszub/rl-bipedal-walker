@@ -2,4 +2,4 @@ test:
   episodes: 100
 defaults:
   - _self_
-  - agent: evolutional
+  - agent: es

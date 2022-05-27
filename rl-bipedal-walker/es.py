@@ -28,7 +28,7 @@ class Parent:
 
 
 @dataclass()
-class EvolutionalAgentConfig:
+class ESAgentConfig:
     generations: int
     mutations_per_parent: int
     mutation_strength: float
@@ -36,8 +36,8 @@ class EvolutionalAgentConfig:
     eval_parent_after_steps: int
 
     @staticmethod
-    def fromDictConfig(config: DictConfig) -> "EvolutionalAgentConfig":
-        return EvolutionalAgentConfig(
+    def fromDictConfig(config: DictConfig) -> "ESAgentConfig":
+        return ESAgentConfig(
             config.generations,
             config.mutations_per_parent,
             config.mutation_strength,
@@ -46,8 +46,8 @@ class EvolutionalAgentConfig:
         )
 
 
-class EvolutionalAgent(Agent):
-    def __init__(self, config: EvolutionalAgentConfig) -> None:
+class ESAgent(Agent):
+    def __init__(self, config: ESAgentConfig) -> None:
         self.config = config
         self._policy_model = Model(
             LinearLayer(24, 64, activation=relu),
@@ -61,9 +61,7 @@ class EvolutionalAgent(Agent):
     def train(self, env: gym.Env) -> List[float]:
         executor = ProcessPoolExecutor()
         rewards = []
-        parent = Parent(
-            self._policy_model, EvolutionalAgent._play(env, self._policy_model)
-        )
+        parent = Parent(self._policy_model, ESAgent._play(env, self._policy_model))
         alpha = self.config.learning_rate / (
             self.config.mutation_strength**2 * self.config.generations
         )
@@ -76,7 +74,7 @@ class EvolutionalAgent(Agent):
 
                 children_f = [
                     executor.submit(
-                        EvolutionalAgent._create_candidate,
+                        ESAgent._create_candidate,
                         env,
                         parent.model,
                         self.config.mutation_strength,
@@ -123,7 +121,7 @@ class EvolutionalAgent(Agent):
             mut_b.append(m_b)
             layer.W += m_w
             layer.b += m_b
-        fitness = EvolutionalAgent._play(env_c, child)
+        fitness = ESAgent._play(env_c, child)
         return Candidate(child, fitness, mut_W, mut_b)
 
     @staticmethod
