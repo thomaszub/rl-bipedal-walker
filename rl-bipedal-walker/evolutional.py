@@ -25,6 +25,7 @@ class EvolutionalAgentConfig:
     children_per_parent: int
     mutation_strength: float
     num_parents: int
+    nodes: List[int]
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "EvolutionalAgentConfig":
@@ -33,13 +34,14 @@ class EvolutionalAgentConfig:
             config.children_per_parent,
             config.mutation_strength,
             config.num_parents,
+            config.nodes,
         )
 
 
 class EvolutionalAgent(Agent):
     def __init__(self, config: EvolutionalAgentConfig) -> None:
         self.config = config
-        self._policy_model = EvolutionalAgent._create_policy_model()
+        self._policy_model = self._create_policy_model()
 
     def action(self, state: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
         return self._policy_model(state)
@@ -48,9 +50,7 @@ class EvolutionalAgent(Agent):
         executor = ProcessPoolExecutor()
         rewards = []
         parents = [
-            EvolutionalAgent._create_candidate(
-                env, EvolutionalAgent._create_policy_model()
-            )
+            EvolutionalAgent._create_candidate(env, self._create_policy_model())
             for _ in range(self.config.num_parents)
         ]
         with trange(0, self.config.generations) as tgen:
@@ -116,13 +116,18 @@ class EvolutionalAgent(Agent):
 
         return sum_reward
 
-    @staticmethod
-    def _create_policy_model() -> Model:
-        return Model(
-            LinearLayer(24, 64, activation=relu),
-            LinearLayer(64, 32, activation=relu),
-            LinearLayer(32, 4, activation=np.tanh),
-        )
+    def _create_policy_model(self) -> Model:
+        nodes = self.config.nodes
+
+        layers = []
+        layers.append(LinearLayer(24, nodes[0], activation=relu))
+
+        for id in range(0, len(self.config.nodes) - 1):
+            layers.append(LinearLayer(nodes[id], nodes[id + 1], activation=relu))
+
+        layers.append(LinearLayer(nodes[-1], 4, activation=np.tanh))
+
+        return Model(*layers)
 
     def _best_candidate(candidates: List[Candidate]) -> Candidate:
         id = np.argmax([candidate.fitness for candidate in candidates])
