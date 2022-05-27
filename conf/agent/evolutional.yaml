@@ -4,5 +4,6 @@ num_parents: 8
 children_per_parent: 8
 mutation_strength: 0.1
 nodes:
-  - 64
-  - 32
+  - 256
+  - 256
+  - 128
