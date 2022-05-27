@@ -63,7 +63,7 @@ class EvolutionalAgent(Agent):
                     fitness=best_parent_fitness,
                 )
 
-                children_f = [
+                candidates_f = [
                     executor.submit(
                         EvolutionalAgent._create_candidate,
                         env,
@@ -73,8 +73,19 @@ class EvolutionalAgent(Agent):
                     for parent in parents
                     for _ in range(self.config.children_per_parent)
                 ]
-                candidates = [child_f.result() for child_f in as_completed(children_f)]
-                candidates.extend(parents)
+                candidates_f.extend(
+                    [
+                        executor.submit(
+                            EvolutionalAgent._create_candidate,
+                            env,
+                            parent.model,
+                        )
+                        for parent in parents
+                    ]
+                )
+                candidates = [
+                    candidate.result() for candidate in as_completed(candidates_f)
+                ]
                 candidates.sort(key=lambda x: x.fitness, reverse=True)
                 parents = candidates[0 : self.config.num_parents]
 
