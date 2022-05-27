@@ -1,0 +1,5 @@
+name: evolutional
+generations: 2000
+mutations_per_parent: 32
+mutation_strength: 0.1
+eval_parent_after_steps: 1
