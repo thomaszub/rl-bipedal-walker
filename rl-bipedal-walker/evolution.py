@@ -82,20 +82,21 @@ class EvolutionalAgent(Agent):
                 ]
                 children = [child_f.result() for child_f in as_completed(children_f)]
 
+                fitnesses = [child.fitness for child in children]
+                mean_fitness = np.mean(fitnesses)
+                std_fitness = np.std(fitnesses)
                 weights = [
-                    self.config.learning_rate
-                    / self.config.generations
-                    * (child.fitness - parent.fitness)
-                    for child in children
+                    (fitness - mean_fitness) / std_fitness for fitness in fitnesses
                 ]
                 for id, layer in enumerate(parent.model._layers):
-                    mut_W = np.sum(
+                    # TODO Number of generations, mut strength, etc.
+                    mut_W = self.config.learning_rate * np.sum(
                         [
                             weight * child.mut_W[id]
                             for weight, child in zip(weights, children)
                         ]
                     )
-                    mut_b = np.sum(
+                    mut_b = self.config.learning_rate * np.sum(
                         [
                             weight * child.mut_W[id]
                             for weight, child in zip(weights, children)
