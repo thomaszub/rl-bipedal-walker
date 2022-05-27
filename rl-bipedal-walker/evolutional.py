@@ -22,44 +22,45 @@ class Candidate:
 @dataclass()
 class EvolutionalAgentConfig:
     generations: int
-    mutations_per_parent: int
+    children_per_parent: int
     mutation_strength: float
-    eval_parent_after_steps: int
+    num_parents: int
 
     @staticmethod
     def fromDictConfig(config: DictConfig) -> "EvolutionalAgentConfig":
         return EvolutionalAgentConfig(
             config.generations,
-            config.mutations_per_parent,
+            config.children_per_parent,
             config.mutation_strength,
-            config.eval_parent_after_steps,
+            config.num_parents,
         )
 
 
 class EvolutionalAgent(Agent):
     def __init__(self, config: EvolutionalAgentConfig) -> None:
         self.config = config
-        self._policy_model = Model(
-            LinearLayer(24, 64, activation=relu),
-            LinearLayer(64, 32, activation=relu),
-            LinearLayer(32, 4, activation=np.tanh),
-        )
+        self._policy_model = EvolutionalAgent._create_policy_model()
 
     def action(self, state: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
         return self._policy_model(state)
 
     def train(self, env: gym.Env) -> List[float]:
-        env.reset()
         executor = ProcessPoolExecutor()
         rewards = []
-        parent = Candidate(
-            self._policy_model, EvolutionalAgent._play(env, self._policy_model)
-        )
+        parents = [
+            EvolutionalAgent._create_candidate(
+                env, EvolutionalAgent._create_policy_model()
+            )
+            for _ in range(self.config.num_parents)
+        ]
         with trange(0, self.config.generations) as tgen:
             for generation in tgen:
+                env.reset()
+                best_parent_fitness = EvolutionalAgent._best_candidate(parents).fitness
+                rewards.append(best_parent_fitness)
                 tgen.set_postfix(
                     generation=generation,
-                    fitness=parent.fitness,
+                    fitness=best_parent_fitness,
                 )
 
                 children_f = [
@@ -69,33 +70,27 @@ class EvolutionalAgent(Agent):
                         parent.model,
                         self.config.mutation_strength,
                     )
-                    for _ in range(self.config.mutations_per_parent)
+                    for parent in parents
+                    for _ in range(self.config.children_per_parent)
                 ]
                 candidates = [child_f.result() for child_f in as_completed(children_f)]
-                candidates.append(parent)
-                id = np.argmax([candidate.fitness for candidate in candidates])
-                parent = candidates[id]
+                candidates.extend(parents)
+                candidates.sort(key=lambda x: x.fitness, reverse=True)
+                parents = candidates[0 : self.config.num_parents]
 
-                if generation % self.config.eval_parent_after_steps == 0:
-                    fitness = self._play(env, parent.model)
-                    parent.fitness = fitness
-                    rewards.append(parent.fitness)
-
-        self._policy_model = parent.model
+        self._policy_model = EvolutionalAgent._best_candidate(parents).model
         executor.shutdown()
         return rewards
 
     @staticmethod
     def _create_candidate(
-        env: gym.Env, parent: Model, mutation_strength: float
+        env: gym.Env, parent: Model, mutation_strength: float = 0.0
     ) -> Candidate:
         env_c = deepcopy(env)
         child = deepcopy(parent)
         for layer in child._layers:
-            m_w = np.random.normal(scale=mutation_strength, size=layer.W.shape)
-            m_b = np.random.normal(scale=mutation_strength, size=layer.b.shape)
-            layer.W += m_w
-            layer.b += m_b
+            layer.W += np.random.normal(scale=mutation_strength, size=layer.W.shape)
+            layer.b += np.random.normal(scale=mutation_strength, size=layer.b.shape)
         fitness = EvolutionalAgent._play(env_c, child)
         return Candidate(child, fitness)
 
@@ -109,3 +104,15 @@ class EvolutionalAgent(Agent):
             state = new_state
 
         return sum_reward
+
+    @staticmethod
+    def _create_policy_model() -> Model:
+        return Model(
+            LinearLayer(24, 64, activation=relu),
+            LinearLayer(64, 32, activation=relu),
+            LinearLayer(32, 4, activation=np.tanh),
+        )
+
+    def _best_candidate(candidates: List[Candidate]) -> Candidate:
+        id = np.argmax([candidate.fitness for candidate in candidates])
+        return candidates[id]
