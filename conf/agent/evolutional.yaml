@@ -1,9 +1,9 @@
 name: evolutional
-generations: 500
+generations: 1000
 num_parents: 8
 children_per_parent: 8
 mutation_strength: 0.1
 nodes:
-  - 256
+  - 512
   - 256
   - 128
